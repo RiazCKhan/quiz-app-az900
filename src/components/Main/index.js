@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import {
   Container,
@@ -12,22 +12,15 @@ import {
 
 import mindImg from "../../images/mind.svg";
 
-import {
-  CATEGORIES,
-  NUM_OF_QUESTIONS,
-  DIFFICULTY,
-  QUESTIONS_TYPE,
-  COUNTDOWN_TIME,
-} from "../../constants";
+import { CATEGORIES, COUNTDOWN_TIME } from "../../constants";
 import { shuffle } from "../../utils";
 
-import Offline from "../Offline";
+import cloudConceptQuestions from "../Quiz/cloudComputingQuestions";
+import architectureAndServicesQuestions from "../Quiz/architectureServicesQuestions";
+import managementAndGovernanceQuestions from "../Quiz/managementGovernanceQuestions";
 
 const Main = ({ startQuiz }) => {
   const [category, setCategory] = useState("0");
-  const [numOfQuestions, setNumOfQuestions] = useState(5);
-  const [difficulty, setDifficulty] = useState("0");
-  const [questionsType, setQuestionsType] = useState("0");
   const [countdownTime, setCountdownTime] = useState({
     hours: 0,
     minutes: 120,
@@ -35,7 +28,7 @@ const Main = ({ startQuiz }) => {
   });
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
-  const [offline, setOffline] = useState(false);
+  const [result, setResult] = useState([]);
 
   const handleTimeChange = (e, { name, value }) => {
     setCountdownTime({ ...countdownTime, [name]: value });
@@ -44,73 +37,39 @@ const Main = ({ startQuiz }) => {
   let allFieldsSelected = false;
   if (
     category &&
-    numOfQuestions &&
-    difficulty &&
-    questionsType &&
     (countdownTime.hours || countdownTime.minutes || countdownTime.seconds)
   ) {
     allFieldsSelected = true;
   }
 
+  useEffect(() => {
+    if (category === 1) {
+      setResult(cloudConceptQuestions);
+    } else if (category === 2) {
+      setResult(architectureAndServicesQuestions);
+    } else if (category === 3) {
+      setResult(managementAndGovernanceQuestions);
+    }
+  }, [category]);
+
   const fetchData = () => {
     setProcessing(true);
 
-    if (error) setError(null);
+    setTimeout(() => {
+      result.forEach((element) => {
+        element.options = shuffle([
+          element.correct_answer,
+          ...element.incorrect_answers,
+        ]);
+      });
 
-    const API = `https://opentdb.com/api.php?amount=${numOfQuestions}&category=${category}&difficulty=${difficulty}&type=${questionsType}`;
-
-    fetch(API)
-      .then((respone) => respone.json())
-      .then((data) =>
-        setTimeout(() => {
-          const { response_code, results } = data;
-
-          if (response_code === 1) {
-            const message = (
-              <p>
-                The API doesn't have enough questions for your query. (Ex.
-                Asking for 50 Questions in a Category that only has 20.)
-                <br />
-                <br />
-                Please change the <strong>No. of Questions</strong>,{" "}
-                <strong>Difficulty Level</strong>, or{" "}
-                <strong>Type of Questions</strong>.
-              </p>
-            );
-
-            setProcessing(false);
-            setError({ message });
-
-            return;
-          }
-
-          results.forEach((element) => {
-            element.options = shuffle([
-              element.correct_answer,
-              ...element.incorrect_answers,
-            ]);
-          });
-
-          setProcessing(false);
-          startQuiz(
-            results,
-            countdownTime.hours + countdownTime.minutes + countdownTime.seconds
-          );
-        }, 1000)
-      )
-      .catch((error) =>
-        setTimeout(() => {
-          if (!navigator.onLine) {
-            setOffline(true);
-          } else {
-            setProcessing(false);
-            setError(error);
-          }
-        }, 1000)
+      setProcessing(false);
+      startQuiz(
+        result,
+        countdownTime.hours + countdownTime.minutes + countdownTime.seconds
       );
+    }, 1000);
   };
-
-  if (offline) return <Offline />;
 
   return (
     <Container>
@@ -120,7 +79,7 @@ const Main = ({ startQuiz }) => {
             <Item.Image src={mindImg} />
             <Item.Content>
               <Item.Header>
-                <h1>The Ultimate Trivia Quiz</h1>
+                <h1>Mock AZ-900 Quiz</h1>
               </Item.Header>
               {error && (
                 <Message error onDismiss={() => setError(null)}>
@@ -143,49 +102,6 @@ const Main = ({ startQuiz }) => {
                 />
                 <br />
                 <Dropdown
-                  fluid
-                  selection
-                  name="numOfQ"
-                  placeholder="Select No. of Questions"
-                  header="Select No. of Questions"
-                  options={NUM_OF_QUESTIONS}
-                  value={numOfQuestions}
-                  onChange={(e, { value }) => setNumOfQuestions(value)}
-                  disabled={processing}
-                />
-                <br />
-                <Dropdown
-                  fluid
-                  selection
-                  name="difficulty"
-                  placeholder="Select Difficulty Level"
-                  header="Select Difficulty Level"
-                  options={DIFFICULTY}
-                  value={difficulty}
-                  onChange={(e, { value }) => setDifficulty(value)}
-                  disabled={processing}
-                />
-                <br />
-
-                {/* REMOVED SELECT QUESTION TYPE */}
-                {/* ALL QUESTIONS WILL BE MULTIPLE CHOICE */}
-
-                {/* <Dropdown
-                  fluid
-                  selection
-                  name="type"
-                  placeholder="Select Questions Type"
-                  header="Select Questions Type"
-                  options={QUESTIONS_TYPE}
-                  value={questionsType}
-                  onChange={(e, { value }) => setQuestionsType(value)}
-                  disabled={processing}
-                />
-                <br /> */}
-
-                {/* REMOVED TIME SELECTION FROM MAIN MENU */}
-
-                {/* <Dropdown
                   search
                   selection
                   name="hours"
@@ -217,7 +133,7 @@ const Main = ({ startQuiz }) => {
                   value={countdownTime.seconds}
                   onChange={handleTimeChange}
                   disabled={processing}
-                /> */}
+                />
               </Item.Meta>
               <Divider />
               <Item.Extra>
